@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: products_postgres
+    environment:
+      POSTGRES_DB: ${DATASOURCE}
+      POSTGRES_USER: ${DATASOURCE_USERNAME}
+      POSTGRES_PASSWORD: ${DATASOURCE_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - poc-network
+
+  app:
+    build: .
+    container_name: products_app
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: ${DATASOURCE_URL}
+      SPRING_DATASOURCE_USERNAME: ${DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${DATASOURCE_PASSWORD}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8081:8080"
+    networks:
+      - poc-network
+
+volumes:
+  postgres_data:
+
+networks:
+  poc-network:
+    driver: bridge
