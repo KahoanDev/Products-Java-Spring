@@ -5,5 +5,6 @@ public enum TipoProduto {
     ALIMENTICIO,
     HIGIENE,
     BEBIDA,
+    ELETRONICO,
     SAUDE
 }

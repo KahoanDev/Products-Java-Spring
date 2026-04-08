@@ -3,9 +3,11 @@ package com.KahoanDev.poc_crud_api.Model;
 import com.KahoanDev.poc_crud_api.Model.enums.TipoProduto;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
+@NoArgsConstructor
 @Table(name = "produtos")
 public class Produto {
 
@@ -21,4 +23,10 @@ public class Produto {
     private TipoProduto tipo;
 
     private Long quantidade;
+
+    public Produto(String descricao, TipoProduto tipo, Long quantidade) {
+        this.descricao = descricao;
+        this.tipo = tipo;
+        this.quantidade = quantidade;
+    }
 }
