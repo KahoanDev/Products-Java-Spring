@@ -30,7 +30,7 @@ public class ProdutoRepositoryTest {
     }
 
     @Test
-    @DisplayName("deve salvar produto válido e retornar o produto salvo")
+    @DisplayName("deve salvar produto e retornar o produto salvo")
     void testGivenProductObject_WhenSave_ThenShouldReturn_SavedProduct() {
         // Given / Arrange
 
