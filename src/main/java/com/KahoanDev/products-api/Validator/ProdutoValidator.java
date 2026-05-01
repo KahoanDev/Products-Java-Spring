@@ -27,6 +27,6 @@ public class ProdutoValidator {
             return produtoEncontrado.isPresent();
         }
 
-        return !produto.getId().equals(produtoEncontrado.get().getId()) && produtoEncontrado.isPresent();
+        return produtoEncontrado.isPresent() && !produto.getId().equals(produtoEncontrado.get().getId());
     }
 }

@@ -3,7 +3,6 @@ package com.KahoanDev.poc_crud_api.Controllers.dto;
 import com.KahoanDev.poc_crud_api.Model.enums.TipoProduto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 @Schema(name = "Produto")
