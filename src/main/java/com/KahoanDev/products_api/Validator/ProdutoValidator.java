@@ -2,7 +2,7 @@ package com.KahoanDev.products_api.Validator;
 
 import com.KahoanDev.products_api.Model.Produto;
 import com.KahoanDev.products_api.Repository.ProdutoRepository;
-import com.KahoanDev.products_api.Exceptions.ProdutoCadastradoException;
+import com.KahoanDev.products_api.Exceptions.ProdutoJaCadastradoException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +16,7 @@ public class ProdutoValidator {
 
     public void validar(Produto produto){
         if (produtoJaCadastrado(produto)){
-            throw new ProdutoCadastradoException("Produto já cadastrado!");
+            throw new ProdutoJaCadastradoException("Produto já cadastrado!");
         }
     }
 

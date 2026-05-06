@@ -1,6 +1,6 @@
 package com.KahoanDev.products_api.Service;
 
-import com.KahoanDev.products_api.Exceptions.ProdutoCadastradoException;
+import com.KahoanDev.products_api.Exceptions.ProdutoJaCadastradoException;
 import com.KahoanDev.products_api.Model.Produto;
 import com.KahoanDev.products_api.Model.enums.TipoProduto;
 import com.KahoanDev.products_api.Repository.ProdutoRepository;
@@ -91,10 +91,10 @@ class ProdutoServiceTest {
         @DisplayName("não deve salvar se o validator lançar exceção")
         void testShouldNotSaveProduct_WhenValidatorThrowException(){
             // Given / Arrange
-            willThrow(new ProdutoCadastradoException("Produto já cadastrado!")).given(validator).validar(any());
+            willThrow(new ProdutoJaCadastradoException("Produto já cadastrado!")).given(validator).validar(any());
 
             // When / Act
-            assertThrows(ProdutoCadastradoException.class, () -> service.salvar(produto));
+            assertThrows(ProdutoJaCadastradoException.class, () -> service.salvar(produto));
 
             // Then / Assert
             verify(repository, never()).save(any(Produto.class));
