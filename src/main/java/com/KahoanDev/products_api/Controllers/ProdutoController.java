@@ -31,6 +31,7 @@ public class ProdutoController implements GenericController{
     @Operation(summary = "Salvar", description = "Cadastrar um novo produto")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Cadastrado com sucesso!"),
+            @ApiResponse(responseCode = "401", description = "Acesso negado!"),
             @ApiResponse(responseCode = "409", description = "Produto já cadastrado!")
     })
     public ResponseEntity<Void> salvar(@RequestBody @Valid ProdutoDTO dto){
@@ -43,7 +44,10 @@ public class ProdutoController implements GenericController{
 
     @GetMapping
     @Operation(summary = "Pesquisa todos", description = "Pesquisa todos os produtos cadastrados!")
-    @ApiResponse(responseCode = "200", description = "Retorna todos os Produtos")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Retorna todos os Produtos"),
+            @ApiResponse(responseCode = "401", description = "Usuário não Autenticado!")
+    })
     public ResponseEntity<List<ProdutoDTO>> pesquisarTudo(){
         List<Produto> resultado = service.pesquisarTudo();
         List<ProdutoDTO> lista = resultado
@@ -58,6 +62,7 @@ public class ProdutoController implements GenericController{
     @Operation(summary = "Pesquisa por Id", description = "Pesquisa o Produto pelo Id")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Produto encontrado"),
+            @ApiResponse(responseCode = "401", description = "Usuário não Autenticado!"),
             @ApiResponse(responseCode = "404", description = "Produto não encontrado")
     })
     public ResponseEntity<ProdutoDTO> pesquisar(@PathVariable Long id){
@@ -72,6 +77,7 @@ public class ProdutoController implements GenericController{
     @Operation(summary = "Atualizar", description = "Atualiza por Id")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Atualizado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Acesso negado!"),
             @ApiResponse(responseCode = "404", description = "Produto não encontrado")
     })
     public ResponseEntity<Void> atualizar(@PathVariable Long id, @RequestBody @Valid ProdutoDTO dto){
@@ -95,6 +101,7 @@ public class ProdutoController implements GenericController{
     @Operation(summary = "Deletar", description = "Deleta por Id")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Deletado com sucesso"),
+            @ApiResponse(responseCode = "401", description = "Acesso negado!"),
             @ApiResponse(responseCode = "404", description = "Produto não encontrado")
     })
     public ResponseEntity<Void> deletar(@PathVariable Long id){

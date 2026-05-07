@@ -1,8 +1,11 @@
 package com.KahoanDev.products_api.Integration;
 
 import com.KahoanDev.products_api.Controllers.dto.ProdutoDTO;
+import com.KahoanDev.products_api.Model.Usuario;
 import com.KahoanDev.products_api.Model.enums.TipoProduto;
+import com.KahoanDev.products_api.Model.enums.UsuarioRoles;
 import com.KahoanDev.products_api.Repository.ProdutoRepository;
+import com.KahoanDev.products_api.Repository.UsuarioRepository;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.builder.RequestSpecBuilder;
@@ -15,6 +18,8 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -24,12 +29,14 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static io.restassured.RestAssured.given;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 public class ProdutoControllerIntegrationTest {
 
     // =========================================================================
@@ -58,7 +65,13 @@ public class ProdutoControllerIntegrationTest {
     int port;
 
     @Autowired
-    ProdutoRepository repository;
+    ProdutoRepository produtoRepository;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private RequestSpecification specification;
     private ObjectMapper mapper;
@@ -75,7 +88,14 @@ public class ProdutoControllerIntegrationTest {
                 .addFilter(new ResponseLoggingFilter(LogDetail.ALL))
                 .build();
 
-        repository.deleteAll();
+        produtoRepository.deleteAll();
+
+        usuarioRepository.deleteAll();
+        var usuario = new Usuario();
+        usuario.setEmail("kahoan@email.com");
+        usuario.setSenha(passwordEncoder.encode("123456"));
+        usuario.setRole(UsuarioRoles.ADMIN);
+        usuarioRepository.save(usuario);
     }
 
 
@@ -89,7 +109,10 @@ public class ProdutoControllerIntegrationTest {
     }
 
     private Long criarProdutoERetornarId(ProdutoDTO dto) {
+        String token = obterToken();
+
         String location = given().spec(specification)
+                .header("Authorization", "Bearer " + token)
                 .contentType(ContentType.JSON)
                 .body(dto)
                 .when()
@@ -99,9 +122,27 @@ public class ProdutoControllerIntegrationTest {
                 .extract()
                     .header("Location");
 
-        return extrairIdDoLocation(location);
+        String[] partes = location.split("/");
+        return Long.parseLong(partes[partes.length - 1]);
     }
 
+    private String obterToken() {
+        var loginRequest = Map.of(
+                "email", "kahoan@email.com",
+                "senha", "123456"
+        );
+
+        return given()
+                .port(port)
+                .contentType(ContentType.JSON)
+                .body(loginRequest)
+                .when()
+                    .post("/auth/login")
+                .then()
+                    .statusCode(200)
+                .extract()
+                    .path("token");
+    }
     // =========================================================================
     // POST
     // =========================================================================
@@ -115,9 +156,11 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_CreateOneProduto_ShouldReturn_201WithLocationHeader() {
             // Given / Arrange
             var dto = new ProdutoDTO(null, "Notebook Dell", TipoProduto.ELETRONICO, 10L);
+            String token = obterToken();
 
             // When / Act
             String location = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(ContentType.JSON)
                     .body(dto)
                     .when()
@@ -138,10 +181,12 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_CreateDuplicatedProduto_ShouldReturn_409Conflict() {
             // Given / Arrange
             var dto = new ProdutoDTO(null, "Notebook Dell", TipoProduto.ELETRONICO, 10L);
+            String token = obterToken();
             criarProdutoERetornarId(dto);
 
             // When / Act + Then / Assert
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(ContentType.JSON)
                     .body(dto)
                     .when()
@@ -155,9 +200,11 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_CreateProdutoWithInvalidBody_ShouldReturn_400BadRequest() {
             // Given / Arrange
             var bodyInvalido = "{}";
+            String token = obterToken();
 
             // When / Act + Then / Assert
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(ContentType.JSON)
                     .body(bodyInvalido)
                     .when()
@@ -176,7 +223,7 @@ public class ProdutoControllerIntegrationTest {
             Long id = criarProdutoERetornarId(dto);
 
             // Then / Assert
-            var salvo = repository.findById(id);
+            var salvo = produtoRepository.findById(id);
             assertTrue(salvo.isPresent());
             assertNotNull(salvo.get().getDescricao());
             assertEquals("SSD 1TB", salvo.get().getDescricao());
@@ -196,9 +243,11 @@ public class ProdutoControllerIntegrationTest {
         @DisplayName("deve retornar lista vazia quando não há produtos cadastrados")
         void integrationTest_When_FindAllWithEmptyDatabase_ShouldReturn_EmptyList() throws IOException {
             // Given / Arrange — banco limpo pelo @BeforeEach
+            String token = obterToken();
 
             // When / Act
             var content = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .when()
                         .get()
                     .then()
@@ -218,9 +267,11 @@ public class ProdutoControllerIntegrationTest {
             // Given / Arrange
             criarProdutoERetornarId(new ProdutoDTO(null, "Produto A", TipoProduto.ELETRONICO, 1L));
             criarProdutoERetornarId(new ProdutoDTO(null, "Produto B", TipoProduto.ELETRONICO, 2L));
+            String token = obterToken();
 
             // When / Act
             var content = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .when()
                         .get()
                     .then()
@@ -241,11 +292,12 @@ public class ProdutoControllerIntegrationTest {
         @DisplayName("deve retornar o produto correto ao buscar por id")
         void integrationTest_When_FindById_ShouldReturn_AProdutoObject() throws IOException {
             // Given / Arrange
-            Long id = criarProdutoERetornarId(
-                    new ProdutoDTO(null, "Headset Sony", TipoProduto.ELETRONICO, 7L));
+            Long id = criarProdutoERetornarId(new ProdutoDTO(null, "Headset Sony", TipoProduto.ELETRONICO, 7L));
+            String token = obterToken();
 
             // When / Act
             var content = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .get("/{id}")
@@ -270,9 +322,11 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_FindByNonExistingId_ShouldReturn_404NotFound() {
             // Given / Arrange
             Long idInexistente = 99999L;
+            String token = obterToken();
 
             // When / Act + Then / Assert
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", idInexistente)
                     .when()
                         .get("/{id}")
@@ -293,13 +347,15 @@ public class ProdutoControllerIntegrationTest {
         @DisplayName("deve retornar 204 e persistir as mudanças ao atualizar produto existente")
         void integrationTest_When_UpdateOneProduto_ShouldReturn_AUpdatedProdutoObject() throws IOException {
             // Given / Arrange
-            Long id = criarProdutoERetornarId(
-                    new ProdutoDTO(null, "Webcam Logitech", TipoProduto.ELETRONICO, 4L));
+            String token = obterToken();
+            Long id = criarProdutoERetornarId(new ProdutoDTO(null, "Webcam Logitech", TipoProduto.ELETRONICO, 4L));
 
             var dtoAtualizado = new ProdutoDTO(null, "Webcam Logitech 4K", TipoProduto.ELETRONICO, 10L);
 
+
             // When / Act
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(ContentType.JSON)
                     .body(dtoAtualizado)
                     .pathParam("id", id)
@@ -310,6 +366,7 @@ public class ProdutoControllerIntegrationTest {
 
             // Then / Assert — confirma via GET
             var content = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .get("/{id}")
@@ -331,9 +388,11 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_UpdateByNonExistingId_ShouldReturn_404NotFound() {
             // Given / Arrange
             var dto = new ProdutoDTO(null, "Qualquer", TipoProduto.ELETRONICO, 1L);
+            String token = obterToken();
 
             // When / Act + Then / Assert
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(ContentType.JSON)
                     .body(dto)
                     .pathParam("id", 99999L)
@@ -356,11 +415,12 @@ public class ProdutoControllerIntegrationTest {
         @DisplayName("deve retornar 204 e remover o produto ao deletar por id existente")
         void integrationTest_When_DeleteOneProduto_ShouldReturn_NoContent() {
             // Given / Arrange
-            Long id = criarProdutoERetornarId(
-                    new ProdutoDTO(null, "Produto X", TipoProduto.ELETRONICO, 5L));
+            Long id = criarProdutoERetornarId(new ProdutoDTO(null, "Produto X", TipoProduto.ELETRONICO, 5L));
+            String token = obterToken();
 
             // When / Act
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .delete("/{id}")
@@ -369,13 +429,14 @@ public class ProdutoControllerIntegrationTest {
 
             // Then / Assert — recurso não existe mais
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .get("/{id}")
                     .then()
                         .statusCode(404);
 
-            assertFalse(repository.existsById(id));
+            assertFalse(produtoRepository.existsById(id));
         }
 
         @Test
@@ -384,9 +445,11 @@ public class ProdutoControllerIntegrationTest {
             // Given / Arrange
             Long id1 = criarProdutoERetornarId(new ProdutoDTO(null, "Produto X", TipoProduto.ELETRONICO, 5L));
             Long id2 = criarProdutoERetornarId(new ProdutoDTO(null, "Produto Y", TipoProduto.ELETRONICO, 3L));
+            String token = obterToken();
 
             // When / Act
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id1)
                     .when()
                         .delete("/{id}")
@@ -395,6 +458,7 @@ public class ProdutoControllerIntegrationTest {
 
             // Then / Assert
             var content = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .when()
                         .get()
                     .then()
@@ -407,8 +471,8 @@ public class ProdutoControllerIntegrationTest {
             assertNotNull(lista);
             assertEquals(1, lista.size());
             assertEquals("Produto Y", lista.getFirst().descricao());
-            assertFalse(repository.existsById(id1));
-            assertTrue(repository.existsById(id2));
+            assertFalse(produtoRepository.existsById(id1));
+            assertTrue(produtoRepository.existsById(id2));
         }
 
         @Test
@@ -416,9 +480,11 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_DeleteByNonExistingId_ShouldReturn_404NotFound() {
             // Given / Arrange
             Long idInexistente = 99999L;
+            String token = obterToken();
 
             // When / Act + Then / Assert
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", idInexistente)
                     .when()
                         .delete("/{id}")
@@ -440,6 +506,7 @@ public class ProdutoControllerIntegrationTest {
         void integrationTest_When_FullCrudIsExecuted_ShouldSucceed_OnEveryStep() throws IOException {
             // Given / Arrange
             var dto = new ProdutoDTO(null, "Teclado Mecânico", TipoProduto.ELETRONICO, 5L);
+            String token = obterToken();
 
             // When / Act — CREATE
             Long id = criarProdutoERetornarId(dto);
@@ -450,6 +517,7 @@ public class ProdutoControllerIntegrationTest {
 
             // When / Act — READ por id
             var contentGet = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .get("/{id}")
@@ -469,6 +537,7 @@ public class ProdutoControllerIntegrationTest {
 
             // When / Act — UPDATE
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(ContentType.JSON)
                     .body(new ProdutoDTO(null, "Teclado Mecânico RGB", TipoProduto.ELETRONICO, 8L))
                     .pathParam("id", id)
@@ -479,6 +548,7 @@ public class ProdutoControllerIntegrationTest {
 
             // Then / Assert
             var contentAtualizado = given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .get("/{id}")
@@ -495,6 +565,7 @@ public class ProdutoControllerIntegrationTest {
 
             // When / Act — DELETE
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .delete("/{id}")
@@ -503,13 +574,14 @@ public class ProdutoControllerIntegrationTest {
 
             // Then / Assert
             given().spec(specification)
+                    .header("Authorization", "Bearer " + token)
                     .pathParam("id", id)
                     .when()
                         .get("/{id}")
                     .then()
                         .statusCode(404);
 
-            assertFalse(repository.existsById(id));
+            assertFalse(produtoRepository.existsById(id));
         }
     }
 

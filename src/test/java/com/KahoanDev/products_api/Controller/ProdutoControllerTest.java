@@ -1,19 +1,25 @@
 package com.KahoanDev.products_api.Controller;
 
+import com.KahoanDev.products_api.Config.SecurityConfig;
 import com.KahoanDev.products_api.Controllers.ProdutoController;
 import com.KahoanDev.products_api.Controllers.dto.ProdutoDTO;
 import com.KahoanDev.products_api.Controllers.mappers.ProdutoMapper;
 import com.KahoanDev.products_api.Model.Produto;
 import com.KahoanDev.products_api.Model.enums.TipoProduto;
 import com.KahoanDev.products_api.Service.ProdutoService;
+import com.KahoanDev.products_api.Service.TokenService;
+import com.KahoanDev.products_api.Service.UsuarioService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,10 +31,13 @@ import java.util.Optional;
 
 import static org.hamcrest.Matchers.*;
 import static org.mockito.BDDMockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProdutoController.class)
+@Import(SecurityConfig.class)
+@AutoConfigureMockMvc(addFilters = false)
 public class ProdutoControllerTest {
 
     @Autowired
@@ -42,6 +51,12 @@ public class ProdutoControllerTest {
 
     @MockitoBean
     private ProdutoMapper mapper;
+
+    @MockitoBean
+    private TokenService tokenService;
+
+    @MockitoBean
+    private UsuarioService usuarioService;
 
     Produto produto;
     ProdutoDTO dto;
@@ -65,6 +80,7 @@ public class ProdutoControllerTest {
     @DisplayName("POST /produto")
     class Salvar {
         @Test
+        @WithMockUser(authorities = "ADMIN")
         @DisplayName("deve retornar 201 e header Location ao criar produto válido")
         void testGivenProduct_WhenCreate_ThenReturnStatusCreated() throws Exception {
             // Given / Arrange
@@ -85,6 +101,7 @@ public class ProdutoControllerTest {
         }
 
         @Test
+        @WithMockUser(authorities = "ADMIN")
         @DisplayName("deve retornar 409 quando produto já existir")
         void testProductThatExists_WhenCreate_ThenReturnStatusConflict() throws Exception {
             // Given / Arrange
@@ -105,6 +122,7 @@ public class ProdutoControllerTest {
         @DisplayName("deve retornar 400 quando body estiver vazio")
         void testBadRequest_WhenCreate() throws Exception{
             mockMvc.perform(post("/produto")
+                            .with(csrf())
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{}"))
                     .andExpect(status().isBadRequest());
@@ -119,6 +137,7 @@ public class ProdutoControllerTest {
     @DisplayName("GET /produto")
     class PesquisarTudo {
         @Test
+        @WithMockUser
         @DisplayName("deve retornar 200 com lista de produtos")
         void testFindAllProducts_ThenReturnListProducts() throws Exception {
             // Given / Arrange
@@ -135,6 +154,7 @@ public class ProdutoControllerTest {
         }
 
         @Test
+        @WithMockUser
         @DisplayName("deve retornar 200 com lista vazia quando não há produtos")
         void testFindAllProducts_ThenReturnEmptyListProducts() throws Exception {
             // Given / Arrange
@@ -159,6 +179,7 @@ public class ProdutoControllerTest {
     class PesquisarPorId {
 
         @Test
+        @WithMockUser
         @DisplayName("deve retornar 200 com produto quando id existe")
         void deveRetornar200QuandoIdExiste() throws Exception {
             given(service.pesquisar(1L)).willReturn(Optional.of(produto));
@@ -171,6 +192,7 @@ public class ProdutoControllerTest {
         }
 
         @Test
+        @WithMockUser
         @DisplayName("deve retornar 404 quando id não existe")
         void deveRetornar404QuandoIdNaoExiste() throws Exception {
             given(service.pesquisar(999L)).willReturn(Optional.empty());
@@ -189,6 +211,7 @@ public class ProdutoControllerTest {
     class Atualizar {
 
         @Test
+        @WithMockUser(authorities = "ADMIN")
         @DisplayName("deve retornar 204 ao atualizar produto existente")
         void deveRetornar204AoAtualizar() throws Exception {
             given(service.pesquisar(1L)).willReturn(Optional.of(produto));
@@ -202,6 +225,7 @@ public class ProdutoControllerTest {
         }
 
         @Test
+        @WithMockUser(authorities = "ADMIN")
         @DisplayName("deve retornar 404 ao tentar atualizar id inexistente")
         void deveRetornar404AoAtualizarIdInexistente() throws Exception {
             given(service.pesquisar(999L)).willReturn(Optional.empty());
@@ -224,6 +248,7 @@ public class ProdutoControllerTest {
     class Deletar {
 
         @Test
+        @WithMockUser(authorities = "ADMIN")
         @DisplayName("deve retornar 204 ao deletar produto existente")
         void deveRetornar204AoDeletar() throws Exception {
             given(service.pesquisar(1L)).willReturn(Optional.of(produto));
@@ -235,6 +260,7 @@ public class ProdutoControllerTest {
         }
 
         @Test
+        @WithMockUser(authorities = "ADMIN")
         @DisplayName("deve retornar 404 ao tentar deletar id inexistente")
         void deveRetornar404AoDeletarIdInexistente() throws Exception {
             given(service.pesquisar(999L)).willReturn(Optional.empty());

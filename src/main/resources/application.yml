@@ -8,3 +8,10 @@ spring:
     jpa:
       hibernate:
         ddl-auto: update
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration: 86400000
+      issuer: products-api

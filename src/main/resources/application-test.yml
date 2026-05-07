@@ -1,0 +1,11 @@
+app:
+  security:
+    jwt:
+      secret: abcdefghijklmnopqrstuvwxyz123456
+      expiration: 86400000
+      issuer: products-api-test
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
